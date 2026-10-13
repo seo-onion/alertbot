@@ -1,0 +1,645 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Alert-BOT</title>
+<link rel="icon" href="data:,">
+<style>
+  @font-face { font-family: Overpass; src: url(overpass.woff2) format('woff2'); font-weight: 400 800; font-display: swap; }
+  :root {
+    color-scheme: light;
+    --page: #e9edf0; --surface: #fbfcfc; --ink: #14212b; --ink-2: #4a5866; --muted: #7d8893;
+    --hair: #d8dee3; --axis: #c3cbd1;
+    --good: #0ca30c; --warn: #fab219; --crit: #d03b3b;
+    --sonido: #2a78d6; --vibracion: #eb6834;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--page); color: var(--ink); font: 15px/1.45 Overpass, system-ui, sans-serif; }
+  button, input, select { font: inherit; color: inherit; }
+  :focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+  .pagina { max-width: 1240px; margin: 0 auto; padding: 16px 24px 48px; }
+
+  .barra { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; padding-bottom: 12px; border-bottom: 1px solid var(--hair); }
+  .barra h1 { font-size: 22px; font-weight: 800; margin: 0; }
+  .barra h1 span { font-size: 15px; font-weight: 400; color: var(--ink-2); margin-left: 8px; }
+  .barra label { margin-left: auto; display: flex; align-items: center; gap: 8px; color: var(--ink-2); }
+  .barra p { margin: 0; color: var(--ink-2); font-variant-numeric: tabular-nums; }
+  select { max-width: min(260px, 60vw); padding: 6px 10px; border: 1px solid var(--axis); border-radius: 6px; background: var(--surface); }
+
+  .pasos { list-style: none; margin: 20px 0 0; padding: 0; display: grid; grid-template-columns: repeat(5, 1fr); counter-reset: paso; }
+  .pasos li { position: relative; padding-right: 12px; color: var(--muted); counter-increment: paso; }
+  .pasos li::before { content: counter(paso); position: relative; z-index: 1; display: grid; place-items: center; width: 28px; height: 28px; margin-bottom: 6px; border-radius: 50%; border: 1.5px solid var(--axis); background: var(--page); font-weight: 700; font-size: 14px; }
+  .pasos li::after { content: ''; position: absolute; top: 14px; left: 28px; right: 0; height: 1.5px; background: var(--axis); }
+  .pasos li:last-child::after { display: none; }
+  .pasos b { display: block; font-weight: 700; }
+  .pasos span { display: block; font-size: 13px; }
+  .pasos li.activo { color: var(--ink); }
+  .pasos li.activo span { color: var(--ink-2); }
+  .pasos li.activo::before { background: var(--ink); border-color: var(--ink); color: var(--surface); }
+  .pasos li.activo.ojo::before { background: var(--warn); border-color: var(--warn); color: var(--ink); }
+  .pasos li.activo.mal::before { background: var(--crit); border-color: var(--crit); color: #fff; }
+  .pasos li.hecho::before { content: '✓'; border-color: var(--ink-2); color: var(--ink-2); }
+  .ahora-fila { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; margin: 14px 0 20px; min-height: 38px; }
+  .ahora { margin: 0; font-size: 18px; font-weight: 600; }
+
+  .principal { display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr); gap: 24px; align-items: start; }
+  .video { position: relative; }
+  .video video, .video canvas { display: block; width: 100%; max-height: 62vh; aspect-ratio: 4 / 3; object-fit: contain; border-radius: 10px; transform: scaleX(-1); }
+  .video video { background: #000; }
+  .video canvas { position: absolute; inset: 0; height: 100%; }
+  .aviso { position: absolute; inset: 0; display: grid; place-content: center; gap: 4px; text-align: center; border-radius: 10px; background: rgb(208 59 59 / .85); color: #fff; }
+  .aviso[hidden] { display: none; }
+  .aviso.listo { background: rgb(20 33 43 / .85); }
+  .aviso p { margin: 0; }
+  .aviso .grande { font-size: 44px; font-weight: 800; line-height: 1.1; }
+  .aviso .reloj { font-size: 28px; font-weight: 700; font-variant-numeric: tabular-nums; }
+
+  .senales { background: var(--surface); border: 1px solid var(--hair); border-radius: 10px; }
+  .senal { padding: 16px 18px 12px; }
+  .senal + .senal { border-top: 1px solid var(--hair); }
+  .senal header { display: flex; align-items: center; gap: 10px; }
+  .senal h2 { font-size: 18px; margin: 0; }
+  .chip { display: inline-flex; align-items: center; gap: 6px; padding: 2px 10px 2px 8px; border-radius: 999px; background: #eef1f3; font-size: 13px; font-weight: 600; }
+  .chip::before { font-weight: 800; }
+  .chip.ok { background: rgb(12 163 12 / .12); } .chip.ok::before { content: '✓'; color: #006300; }
+  .chip.ojo { background: rgb(250 178 25 / .25); } .chip.ojo::before { content: '!'; color: #7a5000; }
+  .chip.neutro::before { content: '–'; color: var(--muted); }
+  .valor { margin: 8px 0 0; font-size: 32px; font-weight: 700; line-height: 1.1; font-variant-numeric: tabular-nums; }
+  .nota { margin: 2px 0 12px; font-size: 13px; color: var(--ink-2); }
+  .nota b { color: var(--ink); font-variant-numeric: tabular-nums; }
+  .mecha { height: 14px; border-radius: 7px; background: #e3e8ec; overflow: hidden; }
+  .mecha div { width: 0; height: 100%; border-radius: 7px; background: var(--warn); transition: width .1s linear; }
+  .mecha div.mal { background: var(--crit); }
+  .mecha-texto { display: flex; justify-content: space-between; margin: 4px 0 8px; font-size: 13px; color: var(--ink-2); font-variant-numeric: tabular-nums; }
+  .traza { display: block; width: 100%; height: 120px; touch-action: none; }
+  .traza text { font-size: 11px; fill: var(--muted); font-variant-numeric: tabular-nums; }
+  .traza .zona { fill: var(--ink-2); }
+  .traza .lectura { font-size: 12px; font-weight: 700; fill: var(--ink); stroke: var(--surface); stroke-width: 3px; paint-order: stroke; }
+
+  .experimento { display: grid; grid-template-columns: 1fr 1.1fr 1.4fr; margin-top: 24px; background: var(--surface); border: 1px solid var(--hair); border-radius: 10px; }
+  .bloque { padding: 18px; min-width: 0; }
+  .bloque + .bloque { border-left: 1px solid var(--hair); }
+  .bloque h2 { font-size: 18px; margin: 0 0 12px; }
+  .bloque h3 { font-size: 13px; font-weight: 600; color: var(--ink-2); margin: 0 0 6px; }
+  .ayuda { margin: 4px 0 14px; font-size: 13px; color: var(--ink-2); }
+  button { padding: 8px 14px; border: 1px solid var(--axis); border-radius: 6px; background: var(--surface); font-weight: 600; cursor: pointer; }
+  button:hover:not(:disabled) { background: #eef1f3; }
+  button:disabled { opacity: .55; cursor: default; }
+  button.primario { background: var(--ink); border-color: var(--ink); color: var(--surface); }
+  button.primario:hover:not(:disabled) { background: #2a3d4d; }
+  fieldset { border: 0; padding: 0; margin: 0; }
+  legend { padding: 0; margin-bottom: 6px; font-size: 13px; color: var(--ink-2); }
+  .segmentado { display: inline-flex; border: 1px solid var(--axis); border-radius: 6px; overflow: hidden; }
+  .segmentado label { position: relative; }
+  .segmentado input { position: absolute; inset: 0; margin: 0; opacity: 0; cursor: pointer; }
+  .segmentado span { display: block; padding: 7px 14px; font-weight: 600; }
+  .segmentado input:checked + span { background: var(--ink); color: var(--surface); }
+  .segmentado input:focus-visible + span { outline: 2px solid var(--warn); outline-offset: -3px; }
+  form { display: flex; gap: 8px; }
+  input[type=text] { flex: 1; min-width: 0; padding: 8px 10px; border: 1px solid var(--axis); border-radius: 6px; background: var(--surface); }
+  .puntos { list-style: none; display: flex; flex-wrap: wrap; gap: 8px; max-width: 250px; margin: 14px 0 8px; padding: 0; }
+  .punto { display: inline-block; width: 14px; height: 14px; border-radius: 50%; border: 1.5px solid var(--axis); vertical-align: -2px; }
+  .punto.sonido { background: var(--sonido); border-color: var(--sonido); }
+  .punto.vibracion { background: var(--vibracion); border-color: var(--vibracion); }
+  .punto.invalida { border: 2px solid var(--crit); }
+  .punto.actual { border: 2px solid var(--ink); animation: latido 1s ease-in-out infinite; }
+  @keyframes latido { 50% { transform: scale(1.3); } }
+  .leyenda { display: flex; flex-wrap: wrap; gap: 14px; margin: 0; font-size: 13px; color: var(--ink-2); }
+  .leyenda span { display: inline-flex; align-items: center; gap: 6px; }
+  .tiles { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 14px; }
+  .tile { padding: 10px 12px; border: 1px solid var(--hair); border-radius: 8px; }
+  .tile span { display: flex; align-items: center; gap: 6px; font-size: 13px; color: var(--ink-2); }
+  .tile b { display: block; font-size: 26px; font-weight: 700; }
+  .tile small { font-size: 13px; color: var(--ink-2); }
+  .tabla { max-height: 230px; overflow: auto; }
+  .descarga { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; margin-top: 12px; }
+  .descarga .ayuda { margin: 0; }
+  .boton { display: inline-block; padding: 8px 14px; border: 1px solid var(--axis); border-radius: 6px; font-weight: 600; color: var(--ink); text-decoration: none; }
+  .boton:hover { background: #eef1f3; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; font-variant-numeric: tabular-nums; }
+  th { position: sticky; top: 0; background: var(--surface); text-align: left; font-weight: 600; color: var(--ink-2); border-bottom: 1px solid var(--axis); padding: 4px 6px; }
+  td { border-bottom: 1px solid var(--hair); padding: 5px 6px; }
+  .n { text-align: right; }
+  .vacio td { padding: 14px 6px; text-align: center; color: var(--muted); }
+
+  .ajustes { margin-top: 16px; padding: 0 18px; background: var(--surface); border: 1px solid var(--hair); border-radius: 10px; }
+  .ajustes summary { padding: 14px 0; font-weight: 700; cursor: pointer; }
+  .ajustes summary span { font-weight: 400; color: var(--ink-2); margin-left: 6px; }
+  .ajustes .filas { display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px; padding-bottom: 18px; }
+  .ajustes label { display: block; font-size: 13px; color: var(--ink-2); }
+  .ajustes output { display: block; font-size: 22px; font-weight: 700; color: var(--ink); font-variant-numeric: tabular-nums; }
+  input[type=range] { width: 100%; accent-color: var(--ink); }
+
+  @media (max-width: 900px) {
+    .pagina { padding: 12px 16px 40px; }
+    .principal, .experimento, .ajustes .filas { grid-template-columns: 1fr; }
+    .pasos { grid-template-columns: 1fr; gap: 6px; }
+    .pasos li { display: grid; grid-template-columns: 36px 1fr; }
+    .pasos li::before { grid-row: span 2; margin: 0; }
+    .pasos li::after { display: none; }
+    .bloque + .bloque { border-left: 0; border-top: 1px solid var(--hair); }
+  }
+  @media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
+</style>
+</head>
+<body>
+<div class="pagina">
+  <header class="barra">
+    <h1>Alert-BOT <span>consola de prueba</span></h1>
+    <label>Cámara <select id="camara"><option>Buscando cámaras…</option></select></label>
+    <p id="fps">Conectando…</p>
+  </header>
+
+  <ol class="pasos" id="pasos">
+    <li data-paso="1"><b>Calibrar</b><span>Aprende cómo son tus ojos abiertos y tu postura</span></li>
+    <li data-paso="2"><b>Vigilar</b><span>Compara cada imagen con lo normal</span></li>
+    <li data-paso="3"><b>Signo sostenido</b><span id="paso3">Ojos cerrados o cabeceo por 1,0 s</span></li>
+    <li data-paso="4"><b>Alerta</b><span>Sonido o vibración; se presiona ESPACIO</span></li>
+    <li data-paso="5"><b>Pausa</b><span>3 s sin alertas y vuelve a vigilar</span></li>
+  </ol>
+  <div class="ahora-fila">
+    <p class="ahora" id="ahora">Cargando…</p>
+    <button class="primario" id="accion" hidden></button>
+  </div>
+
+  <main class="principal">
+    <section class="video">
+      <video id="video" autoplay muted playsinline aria-label="Lo que ve la cámara"></video>
+      <canvas id="puntos-ojos" aria-hidden="true"></canvas>
+      <div class="aviso" id="aviso" role="alert" hidden>
+        <p id="aviso-tipo"></p>
+        <p class="grande" id="aviso-grande"></p>
+        <p class="reloj" id="aviso-reloj"></p>
+        <p id="aviso-causa"></p>
+      </div>
+    </section>
+
+    <section class="senales" aria-label="Lo que mide el sistema">
+      <article class="senal">
+        <header><h2>Ojos</h2><span class="chip neutro" id="ojos-chip">Sin datos</span></header>
+        <p class="valor" id="ojos-valor">—</p>
+        <p class="nota">Apertura del ojo (EAR): alto es abierto, cerca de 0 es cerrado.<br>Tu normal <b id="ojos-normal">—</b>, alerta bajo <b id="ojos-umbral">—</b></p>
+        <div class="mecha"><div id="ojos-mecha"></div></div>
+        <p class="mecha-texto"><span id="ojos-mecha-izq"></span><span id="ojos-mecha-der"></span></p>
+        <svg class="traza" id="ojos-traza" role="img" aria-label="Apertura del ojo en los últimos 10 segundos"></svg>
+      </article>
+      <article class="senal">
+        <header><h2>Cabeza</h2><span class="chip neutro" id="cabeza-chip">Sin datos</span></header>
+        <p class="valor" id="cabeza-valor">—</p>
+        <p class="nota">Inclinación respecto a tu postura al calibrar.<br>Cuenta como cabeceo pasando <b id="cabeza-limite">—</b></p>
+        <div class="mecha"><div id="cabeza-mecha"></div></div>
+        <p class="mecha-texto"><span id="cabeza-mecha-izq"></span><span id="cabeza-mecha-der"></span></p>
+        <svg class="traza" id="cabeza-traza" role="img" aria-label="Inclinación de la cabeza en los últimos 10 segundos"></svg>
+      </article>
+    </section>
+  </main>
+
+  <section class="experimento">
+    <div class="bloque">
+      <h2>Probar</h2>
+      <button class="primario" id="calibrar">Calibrar</button>
+      <p class="ayuda">Mira al frente con los ojos abiertos durante 3 s.</p>
+      <button id="probar">Probar alerta</button>
+      <p class="ayuda">Dispara una alerta ahora, sin cerrar los ojos.</p>
+      <fieldset>
+        <legend>Tipo de alerta fuera de una sesión</legend>
+        <div class="segmentado">
+          <label><input type="radio" name="modo" value="sonido" checked><span>Sonido</span></label>
+          <label><input type="radio" name="modo" value="vibracion"><span>Vibración</span></label>
+        </div>
+      </fieldset>
+    </div>
+
+    <div class="bloque">
+      <h2>Sesión con voluntario</h2>
+      <p class="ayuda">10 alertas de sonido y 10 de vibración en orden al azar. El voluntario cierra los ojos o baja la cabeza a propósito y presiona ESPACIO al sentir la alerta.</p>
+      <form id="form-sesion">
+        <input type="text" id="participante" placeholder="Código del voluntario" required>
+        <button id="iniciar">Iniciar sesión</button>
+      </form>
+      <ol class="puntos" id="puntos"></ol>
+      <p class="ayuda" id="sesion-estado">Sin sesión activa.</p>
+      <p class="leyenda">
+        <span><i class="punto sonido"></i>Sonido</span>
+        <span><i class="punto vibracion"></i>Vibración</span>
+        <span><i class="punto invalida"></i>Inválida</span>
+        <span><i class="punto"></i>Pendiente</span>
+      </p>
+    </div>
+
+    <div class="bloque">
+      <h2>Resultados</h2>
+      <h3 id="tiles-titulo">Promedio de reacción fuera de sesión</h3>
+      <div class="tiles">
+        <div class="tile"><span><i class="punto sonido"></i>Sonido</span><b id="prom-sonido">—</b><small id="n-sonido">sin datos aún</small></div>
+        <div class="tile"><span><i class="punto vibracion"></i>Vibración</span><b id="prom-vibracion">—</b><small id="n-vibracion">sin datos aún</small></div>
+      </div>
+      <div class="tabla">
+        <table>
+          <thead><tr><th>Rep.</th><th>Alerta</th><th>Signo</th><th class="n">Reacción</th><th class="n">Latencia</th></tr></thead>
+          <tbody id="filas"></tbody>
+        </table>
+      </div>
+      <div class="descarga">
+        <a class="boton" href="/resultados.csv" download>Descargar CSV</a>
+        <p class="ayuda">Trae todas las reacciones guardadas en el servidor, de todo el equipo.</p>
+      </div>
+    </div>
+  </section>
+
+  <details class="ajustes">
+    <summary>Ajustes de detección <span>cambian en vivo; mira cómo se mueve la zona roja de los gráficos</span></summary>
+    <div class="filas">
+      <label>Ojo cerrado si baja del <output id="o-factor"></output> de tu apertura normal
+        <input type="range" id="factor" min="0.5" max="0.9" step="0.05"></label>
+      <label>Cabeceo a partir de <output id="o-grados"></output> de inclinación
+        <input type="range" id="grados" min="10" max="40" step="1"></label>
+      <label>El signo debe durar <output id="o-segundos"></output> antes de alertar
+        <input type="range" id="segundos" min="0.5" max="3" step="0.1"></label>
+    </div>
+  </details>
+</div>
+
+<script type="module">
+import { FaceLandmarker, FilesetResolver } from './vendor/mediapipe/vision_bundle.mjs'
+import { ajustes, diferencia, ear, inclinacion, Monitor, OJO_DER, OJO_IZQ } from './logica.mjs'
+
+const $ = id => document.getElementById(id)
+const post = (ruta, datos = {}) => fetch(ruta, { method: 'POST', body: JSON.stringify(datos) })
+const formatos = {}
+const fmt = (x, d = 0) => x == null || x === '' ? '—'
+  : (formatos[d] ??= new Intl.NumberFormat('es', { minimumFractionDigits: d, maximumFractionDigits: d, useGrouping: false })).format(x)
+const conSigno = v => `${v > 0 ? '+' : ''}${fmt(v, 1)}°`
+const VENTANA = 10
+const historia = [], marcas = [], filas = [], hover = {}
+const monitor = new Monitor(), video = $('video'), lienzo = $('puntos-ojos'), pincel = lienzo.getContext('2d')
+const EXTERNAS = ['cargando', 'sin_modelo', 'inseguro', 'sin_permiso', 'sin_camara']
+let e = {}, audio, detector, flujo, externa = 'cargando', alerta = null, causa = '', t0 = 0, cierre = 0, clave = ''
+let fps = 0, previo = 0, pintado = 0, ultimoCuadro = -1
+
+function activarAudio() {
+  audio ??= new AudioContext()
+  audio.resume()
+}
+
+function pitido() {
+  activarAudio()
+  const o = audio.createOscillator()
+  o.frequency.value = 880
+  o.connect(audio.destination)
+  o.start()
+  o.stop(audio.currentTime + 0.5)
+}
+
+function frase() {
+  const s = e.segundos
+  switch (e.fase) {
+    case 'cargando': return 'Cargando la cámara y el modelo de detección (unos 15 MB la primera vez)…'
+    case 'sin_modelo': return 'No se pudo cargar el modelo de detección. Recarga la página.'
+    case 'inseguro': return 'El navegador solo da la cámara en https o en localhost. Abre el link con https.'
+    case 'sin_permiso': return 'El navegador no dio permiso para la cámara. Permítelo en el candado de la barra de direcciones y presiona Reintentar.'
+    case 'sin_camara': return 'No llega imagen de la cámara. Revisa que otra app no la esté usando y presiona Reintentar.'
+    case 'sin_rostro': return 'No veo ningún rostro. Acércate a la cámara o pon más luz frente a tu cara.'
+    case 'sin_calibrar': return 'Primero calibra: mira al frente con los ojos abiertos y presiona Calibrar.'
+    case 'calibrando': return `Calibrando: sigue mirando al frente con los ojos abiertos (${fmt(e.calibracion_s, 1)} s).`
+    case 'alerta': return 'Alerta activa: presiona ESPACIO para registrar el tiempo de reacción.'
+    case 'pausa': return `Pausa de ${fmt(e.pausa_s, 1)} s para no encadenar alertas; luego vuelve a vigilar.`
+  }
+  if (e.ojos_s > 0) return `Ojos cerrados hace ${fmt(e.ojos_s, 1)} s: si siguen así ${fmt(Math.max(0, s - e.ojos_s), 1)} s más, salta la alerta.`
+  if (e.cabeza_s > 0) return `Cabeza inclinada hace ${fmt(e.cabeza_s, 1)} s: si sigue así ${fmt(Math.max(0, s - e.cabeza_s), 1)} s más, salta la alerta.`
+  return `Vigilando: ojos abiertos y cabeza recta. Cierra los ojos ${fmt(s, 1)} s para ver la alerta.`
+}
+
+function chip(id, [clase, texto]) {
+  $(id).className = 'chip ' + clase
+  $(id).textContent = texto
+}
+
+function mecha(id, segundos, palabra, signo) {
+  const disparo = e.fase === 'alerta' && causa === signo
+  const div = $(id + '-mecha')
+  div.style.width = `${disparo ? 100 : Math.min(100, segundos / e.segundos * 100)}%`
+  div.className = disparo ? 'mal' : ''
+  $(id + '-mecha-izq').textContent = disparo ? 'Alerta disparada' : segundos > 0 ? `${palabra} ${fmt(segundos, 1)} s` : 'Sin signo'
+  $(id + '-mecha-der').textContent = `alerta a ${fmt(e.segundos, 1)} s`
+}
+
+function traza(svg, campo, c) {
+  const W = svg.clientWidth || 400, H = 120, L = 40, R = 10, T = 8, B = 20
+  const ahora = performance.now() / 1000, desde = ahora - VENTANA
+  const x = t => L + (t - desde) / VENTANA * (W - L - R)
+  const y = v => T + (c.max - Math.min(c.max, Math.max(c.min, v))) / (c.max - c.min) * (H - T - B)
+  let s = ''
+  for (const [a, b] of c.zonas) s += `<rect x="${L}" y="${y(b)}" width="${W - L - R}" height="${y(a) - y(b)}" fill="var(--crit)" fill-opacity=".08"/>`
+  for (const v of c.ticks) s += `<line x1="${L}" x2="${W - R}" y1="${y(v)}" y2="${y(v)}" stroke="var(--hair)"/><text x="${L - 6}" y="${y(v) + 4}" text-anchor="end">${c.eje(v)}</text>`
+  for (const v of c.limites) s += `<line x1="${L}" x2="${W - R}" y1="${y(v)}" y2="${y(v)}" stroke="var(--crit)"/>`
+  if (c.normal != null) s += `<line x1="${L}" x2="${W - R}" y1="${y(c.normal)}" y2="${y(c.normal)}" stroke="var(--ink-2)"/><text x="${W - R}" y="${y(c.normal) - 4}" text-anchor="end">tu normal</text>`
+  if (c.zonas.length) s += `<text class="zona" x="${L + 6}" y="${c.textoY(y)}">${c.texto}</text>`
+  for (const m of marcas) if (m > desde) s += `<line x1="${x(m)}" x2="${x(m)}" y1="${T}" y2="${H - B}" stroke="var(--crit)" stroke-width="1.5"/>`
+  let d = '', trazo = false
+  for (const h of historia) {
+    if (h[campo] == null || h.t < desde) { trazo = false; continue }
+    d += `${trazo ? 'L' : 'M'}${x(h.t).toFixed(1)} ${y(h[campo]).toFixed(1)}`
+    trazo = true
+  }
+  s += `<path d="${d}" fill="none" stroke="var(--ink)" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>`
+  const u = historia.at(-1)
+  if (u && u[campo] != null) s += `<circle cx="${x(u.t)}" cy="${y(u[campo])}" r="4.5" fill="${c.mal(u[campo]) ? 'var(--crit)' : 'var(--good)'}" stroke="var(--surface)" stroke-width="2"/>`
+  s += `<text x="${L}" y="${H - 4}">hace ${VENTANA} s</text><text x="${W - R}" y="${H - 4}" text-anchor="end">ahora</text>`
+  const hx = hover[svg.id]
+  if (hx != null && historia.length) {
+    const t = desde + (hx - L) / (W - L - R) * VENTANA
+    const h = historia.reduce((a, b) => Math.abs(b.t - t) < Math.abs(a.t - t) ? b : a)
+    if (h[campo] != null && h.t >= desde) s += `<line x1="${x(h.t)}" x2="${x(h.t)}" y1="${T}" y2="${H - B}" stroke="var(--ink-2)"/><text class="lectura" x="${W - R - 4}" y="${T + 12}" text-anchor="end">hace ${fmt(ahora - h.t, 1)} s: ${c.valor(h[campo])}</text>`
+  }
+  svg.setAttribute('viewBox', `0 0 ${W} ${H}`)
+  svg.innerHTML = s
+}
+
+function pintar() {
+  const f = e.fase, calibrado = e.base_ear != null
+  const activo = { sin_calibrar: 1, calibrando: 1, vigilando: e.ojos_s > 0 || e.cabeza_s > 0 ? 3 : 2, alerta: 4, pausa: 5 }[f] ?? 0
+  for (const li of $('pasos').children) {
+    const n = +li.dataset.paso
+    li.className = n === activo ? `activo${n === 3 ? ' ojo' : n === 4 ? ' mal' : ''}` : n === 1 && calibrado ? 'hecho' : ''
+  }
+  $('paso3').textContent = `Ojos cerrados o cabeceo por ${fmt(e.segundos, 1)} s`
+  $('ahora').textContent = frase()
+  $('fps').textContent = EXTERNAS.includes(f) ? '' : `${fmt(e.fps)} imágenes por segundo`
+
+  const cerrados = calibrado && e.ear != null && e.ear < e.umbral
+  chip('ojos-chip', e.ear == null ? ['neutro', 'Sin rostro'] : !calibrado ? ['neutro', 'Sin calibrar'] : cerrados ? ['ojo', 'Cerrados'] : ['ok', 'Abiertos'])
+  $('ojos-valor').textContent = fmt(e.ear, 2)
+  $('ojos-normal').textContent = fmt(e.base_ear, 2)
+  $('ojos-umbral').textContent = fmt(e.umbral, 2)
+  mecha('ojos', e.ojos_s, 'Cerrados', 'ojos cerrados')
+
+  const inclinada = calibrado && e.inclinacion != null && Math.abs(e.inclinacion) > e.grados
+  chip('cabeza-chip', e.inclinacion == null ? ['neutro', 'Sin rostro'] : !calibrado ? ['neutro', 'Sin calibrar'] : inclinada ? ['ojo', 'Inclinada'] : ['ok', 'Recta'])
+  $('cabeza-valor').textContent = e.inclinacion == null ? '—' : conSigno(e.inclinacion)
+  $('cabeza-limite').textContent = `±${fmt(e.grados)}°`
+  mecha('cabeza', e.cabeza_s, 'Inclinada', 'cabeceo')
+
+  traza($('ojos-traza'), 'ear', {
+    min: 0, max: 0.45, ticks: [0, 0.1, 0.2, 0.3, 0.4], eje: v => fmt(v, 1), valor: v => fmt(v, 2),
+    zonas: calibrado ? [[0, e.umbral]] : [], limites: calibrado ? [e.umbral] : [], normal: e.base_ear,
+    texto: 'zona de ojo cerrado', textoY: y => y(0) - 6, mal: v => calibrado && v < e.umbral,
+  })
+  traza($('cabeza-traza'), 'inc', {
+    min: -45, max: 45, ticks: [-40, 0, 40], eje: v => `${v > 0 ? '+' : ''}${v}°`, valor: conSigno,
+    zonas: calibrado ? [[e.grados, 45], [-45, -e.grados]] : [], limites: calibrado ? [e.grados, -e.grados] : [], normal: null,
+    texto: 'zona de cabeceo', textoY: y => y(45) + 14, mal: v => calibrado && Math.abs(v) > e.grados,
+  })
+
+  const accion = { sin_calibrar: 'Calibrar ahora', sin_permiso: 'Reintentar', sin_camara: 'Reintentar' }[f]
+  $('accion').hidden = !accion
+  $('accion').textContent = accion ?? ''
+  $('calibrar').disabled = f === 'calibrando'
+  $('calibrar').textContent = f === 'calibrando' ? `Calibrando… ${fmt(e.calibracion_s, 1)} s` : calibrado ? 'Volver a calibrar' : 'Calibrar'
+  $('probar').disabled = f === 'alerta'
+  for (const r of document.querySelectorAll('[name=modo]')) if (document.activeElement !== r) r.checked = r.value === e.modo
+  for (const k of ['factor', 'grados', 'segundos']) if (document.activeElement !== $(k)) $(k).value = e[k]
+  etiquetas()
+
+  const sesion = e.total > 0
+  $('iniciar').textContent = sesion ? 'Reiniciar sesión' : 'Iniciar sesión'
+  $('sesion-estado').textContent = !sesion ? 'Sin sesión activa: las alertas usan el tipo elegido en Probar.'
+    : e.hechas < e.total || alerta ? `Voluntario ${e.participante}: alerta ${e.hechas} de ${e.total}.`
+    : `Voluntario ${e.participante}: sesión completa.`
+  const nueva = [e.total, e.hechas, e.participante, alerta, filas.length].join('|')
+  if (nueva !== clave) {
+    clave = nueva
+    pintarPuntos()
+    pintarResultados()
+  }
+}
+
+function etiquetas() {
+  $('o-factor').textContent = `${fmt($('factor').value * 100)} %`
+  $('o-grados').textContent = `${fmt(+$('grados').value)}°`
+  $('o-segundos').textContent = `${fmt(+$('segundos').value, 1)} s`
+}
+
+function valida(r) {
+  return r.reaccion_valida_ms !== ''
+}
+
+function pintarPuntos() {
+  const mapa = {}
+  for (const r of filas) if (r.participante === e.participante && r.repeticion !== '' && !(r.repeticion in mapa)) mapa[r.repeticion] = r
+  const puntos = []
+  for (let i = 1; i <= e.total; i++) {
+    const li = document.createElement('li'), r = mapa[i]
+    li.className = 'punto ' + (r ? (valida(r) ? r.alerta : 'invalida') : i === e.hechas && alerta ? 'actual' : '')
+    li.title = r ? `Repetición ${i}: ${r.alerta}, ${valida(r) ? fmt(r.reaccion_valida_ms) + ' ms' : 'inválida'}` : `Repetición ${i}`
+    puntos.push(li)
+  }
+  $('puntos').replaceChildren(...puntos)
+}
+
+function pintarResultados() {
+  const p = e.participante ?? ''
+  const mias = filas.filter(r => r.participante === p)
+  $('tiles-titulo').textContent = p ? `Promedio de reacción del voluntario ${p}` : 'Promedio de reacción fuera de sesión'
+  for (const tipo of ['sonido', 'vibracion']) {
+    const v = mias.filter(r => r.alerta === tipo && r.signo !== 'prueba' && valida(r)).map(r => r.reaccion_valida_ms)
+    $('prom-' + tipo).textContent = v.length ? `${fmt(v.reduce((a, b) => a + b) / v.length)} ms` : '—'
+    $('n-' + tipo).textContent = v.length ? `${v.length} ${v.length === 1 ? 'reacción válida' : 'reacciones válidas'}` : 'sin datos aún'
+  }
+  const cuerpo = $('filas')
+  cuerpo.replaceChildren()
+  if (!mias.length) {
+    const tr = cuerpo.insertRow(), td = tr.insertCell()
+    tr.className = 'vacio'
+    td.colSpan = 5
+    td.textContent = 'Aún no hay reacciones. Cierra los ojos o usa Probar alerta.'
+  }
+  for (const r of mias.slice(0, 50)) {
+    const tr = cuerpo.insertRow()
+    tr.insertCell().textContent = r.repeticion === '' ? '—' : r.repeticion
+    const punto = document.createElement('i')
+    punto.className = 'punto ' + r.alerta
+    tr.insertCell().append(punto, ' ', r.alerta === 'sonido' ? 'Sonido' : 'Vibración')
+    tr.insertCell().textContent = r.signo[0].toUpperCase() + r.signo.slice(1)
+    const rt = tr.insertCell(), lat = tr.insertCell()
+    rt.className = lat.className = 'n'
+    rt.textContent = valida(r) ? `${fmt(r.reaccion_valida_ms)} ms` : 'inválida'
+    lat.textContent = r.latencia_ms === '' ? '—' : `${fmt(r.latencia_ms, 1)} ms`
+  }
+}
+
+function aviso(clase, tipo, grande, causaTexto) {
+  $('aviso').className = clase
+  $('aviso').hidden = false
+  $('aviso-tipo').textContent = tipo
+  $('aviso-grande').textContent = grande
+  $('aviso-reloj').textContent = ''
+  $('aviso-causa').textContent = causaTexto
+}
+
+function reloj() {
+  if (!alerta) return
+  $('aviso-reloj').textContent = `${fmt((performance.now() - t0) / 1000, 2)} s`
+  requestAnimationFrame(reloj)
+}
+
+monitor.alAlertar = a => {
+  alerta = a.id
+  causa = a.signo
+  t0 = performance.now()
+  marcas.push(t0 / 1000)
+  clearTimeout(cierre)
+  if (a.tipo === 'sonido') pitido()
+  else post('/vibrar').then(r => r.json())
+    .then(({ latencia_ms }) => latencia_ms === null ? terminar(a.id, null) : a.latencia = latencia_ms)
+    .catch(() => terminar(a.id, null))
+  aviso('aviso', a.tipo === 'sonido' ? 'Alerta con sonido' : 'Alerta con vibración en la pulsera', 'Presiona ESPACIO',
+    a.signo === 'prueba' ? 'Alerta de prueba' : `Causa: ${a.signo} durante ${fmt(ajustes.segundos, 1)} s`)
+  requestAnimationFrame(reloj)
+}
+
+function terminar(id, rt) {
+  const fila = monitor.reaccionar(id, rt, performance.now() / 1000)
+  if (!fila) return
+  post('/reaccion', fila)
+  registrar(fila)
+}
+
+function registrar(r) {
+  filas.unshift(r)
+  if (alerta !== r.id) return
+  alerta = null
+  aviso('aviso listo', valida(r) ? 'Tiempo de reacción' : 'Repetición inválida',
+    valida(r) ? `${fmt(r.reaccion_valida_ms)} ms` : 'La pulsera no respondió', 'Guardado en el CSV')
+  cierre = setTimeout(() => { if (!alerta) $('aviso').hidden = true }, 1800)
+}
+
+function resumir(fase, valorEar, valorInc, t) {
+  const m = monitor, b = m.base
+  return {
+    fase, fps: Math.round(fps), ear: valorEar, base_ear: b?.[0] ?? null, umbral: b ? b[0] * ajustes.factor : null,
+    inclinacion: valorInc === null ? null : b ? diferencia(valorInc, b[1]) : valorInc,
+    ojos_s: m.ojos.desde === null ? 0 : t - m.ojos.desde,
+    cabeza_s: m.cabeza.desde === null ? 0 : t - m.cabeza.desde,
+    calibracion_s: m.calibracion ? Math.max(0, m.calibracion.hasta - t) : 0,
+    pausa_s: Math.max(0, m.esperaHasta - t),
+    factor: ajustes.factor, grados: ajustes.grados, segundos: ajustes.segundos,
+    modo: m.modo, participante: m.participante, hechas: m.total - m.sesion.length, total: m.total,
+  }
+}
+
+function avisoExterno(f) {
+  externa = f
+  e = resumir(f, null, null, performance.now() / 1000)
+  pintar()
+}
+
+function cuadro() {
+  requestAnimationFrame(cuadro)
+  if (externa || video.readyState < 2 || video.currentTime === ultimoCuadro) return
+  ultimoCuadro = video.currentTime
+  const ahora = performance.now(), t = ahora / 1000
+  fps = previo ? 0.9 * fps + 100 / (ahora - previo) : 0
+  previo = ahora
+  const r = detector.detectForVideo(video, ahora)
+  const w = video.videoWidth, h = video.videoHeight
+  if (lienzo.width !== w || lienzo.height !== h) [lienzo.width, lienzo.height] = [w, h]
+  pincel.clearRect(0, 0, w, h)
+  let fase, valorEar = null, valorInc = null
+  if (!r.faceLandmarks.length) fase = monitor.sinRostro()
+  else {
+    const lm = r.faceLandmarks[0], puntos = idx => idx.map(i => [lm[i].x * w, lm[i].y * h])
+    valorEar = (ear(puntos(OJO_IZQ)) + ear(puntos(OJO_DER))) / 2
+    valorInc = inclinacion(r.facialTransformationMatrixes[0].data)
+    fase = monitor.revisar(valorEar, valorInc, t)
+    pincel.fillStyle = monitor.base && valorEar < monitor.base[0] * ajustes.factor ? '#d03b3b' : '#0ca30c'
+    for (const [x, y] of puntos([...OJO_IZQ, ...OJO_DER])) {
+      pincel.beginPath()
+      pincel.arc(x, y, 2.5, 0, 2 * Math.PI)
+      pincel.fill()
+    }
+  }
+  if (ahora - pintado < 100) return
+  pintado = ahora
+  e = resumir(fase, valorEar, valorInc, t)
+  historia.push({ t, ear: e.ear, inc: e.inclinacion })
+  while (historia[0].t < t - VENTANA - 1) historia.shift()
+  pintar()
+}
+
+async function iniciarDetector() {
+  try {
+    const archivos = await FilesetResolver.forVisionTasks('./vendor/mediapipe/wasm')
+    const opciones = delegate => ({
+      baseOptions: { modelAssetPath: './face_landmarker.task', delegate },
+      runningMode: 'VIDEO', numFaces: 1, outputFacialTransformationMatrixes: true,
+    })
+    detector = await FaceLandmarker.createFromOptions(archivos, opciones('GPU'))
+      .catch(() => FaceLandmarker.createFromOptions(archivos, opciones('CPU')))
+    return true
+  } catch {
+    avisoExterno('sin_modelo')
+    return false
+  }
+}
+
+async function iniciarCamara(deviceId) {
+  if (!navigator.mediaDevices) return avisoExterno('inseguro'), false
+  flujo?.getTracks().forEach(p => p.stop())
+  try {
+    flujo = await navigator.mediaDevices.getUserMedia({ video: deviceId ? { deviceId: { exact: deviceId } } : { width: 640, height: 480 } })
+  } catch (err) {
+    return avisoExterno(err.name === 'NotAllowedError' ? 'sin_permiso' : 'sin_camara'), false
+  }
+  video.srcObject = flujo
+  await video.play()
+  monitor.base = monitor.calibracion = null
+  const actual = flujo.getVideoTracks()[0].getSettings().deviceId
+  const camaras = (await navigator.mediaDevices.enumerateDevices()).filter(d => d.kind === 'videoinput')
+  $('camara').replaceChildren(...camaras.map((c, i) => new Option(c.label || `Cámara ${i + 1}`, c.deviceId)))
+  $('camara').value = actual
+  if (detector) externa = null
+  return true
+}
+
+$('camara').onchange = ev => {
+  iniciarCamara(ev.target.value)
+  ev.target.blur()
+}
+$('accion').onclick = () => e.fase === 'sin_calibrar' ? monitor.calibrar(performance.now() / 1000) : iniciarCamara($('camara').value || undefined)
+$('calibrar').onclick = () => monitor.calibrar(performance.now() / 1000)
+$('probar').onclick = () => monitor.probar()
+for (const r of document.querySelectorAll('[name=modo]')) r.onchange = () => {
+  monitor.modo = r.value
+  r.blur()
+}
+$('form-sesion').onsubmit = ev => {
+  ev.preventDefault()
+  monitor.iniciarSesion($('participante').value.trim())
+  document.activeElement.blur()
+}
+for (const k of ['factor', 'grados', 'segundos']) $(k).oninput = () => {
+  ajustes[k] = +$(k).value
+  etiquetas()
+}
+for (const id of ['ojos-traza', 'cabeza-traza']) {
+  $(id).onpointermove = ev => { hover[id] = ev.offsetX }
+  $(id).onpointerleave = () => { hover[id] = null }
+}
+
+addEventListener('pointerdown', activarAudio)
+addEventListener('click', ev => ev.target.closest('button')?.blur())
+addEventListener('keydown', ev => {
+  if (ev.code !== 'Space' || ev.target.id === 'participante') return
+  ev.preventDefault()
+  if (alerta) terminar(alerta, ev.timeStamp - t0)
+})
+
+avisoExterno('cargando')
+const [modelo, camara] = await Promise.all([iniciarDetector(), iniciarCamara()])
+if (modelo && camara) externa = null
+requestAnimationFrame(cuadro)
+</script>
+</body>
+</html>

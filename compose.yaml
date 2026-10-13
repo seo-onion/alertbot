@@ -1,0 +1,19 @@
+services:
+  app:
+    build: .
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:8765:8765"
+    volumes:
+      - datos:/datos
+
+  # link público con https gratis; la dirección *.trycloudflare.com sale en: docker compose logs tunel
+  tunel:
+    image: cloudflare/cloudflared:2026.9.3
+    command: tunnel --no-autoupdate --url http://app:8765
+    restart: unless-stopped
+    depends_on:
+      - app
+
+volumes:
+  datos:
