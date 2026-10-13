@@ -15,8 +15,8 @@ No hay nada que compilar: el servidor usa solo Python, sin librerías extra, y l
    - **Sin git:** en esta página, botón verde **Code** → **Download ZIP**. Descomprímelo; la carpeta se llama `alertbot-main`.
    - **Con git:** `git clone https://github.com/seo-onion/alertbot.git`
 3. Abre una terminal dentro de esa carpeta:
-   - Windows: abre la carpeta, clic derecho en un espacio vacío → **Abrir en Terminal**.
-   - Mac: clic derecho en la carpeta → **Nuevo terminal en la carpeta**.
+   - Windows 11: abre la carpeta, clic derecho en un espacio vacío → **Abrir en Terminal**. En Windows 10: Shift + clic derecho → **Abrir la ventana de PowerShell aquí**.
+   - Mac: clic derecho en la carpeta → **Servicios** → **Nuevo terminal en la carpeta**.
    - Linux: `cd` hasta la carpeta.
 4. Corre el comando de tu sistema:
 
