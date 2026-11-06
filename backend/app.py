@@ -2,9 +2,7 @@ import csv
 import json
 import os
 import re
-import socket
 import threading
-import time
 import webbrowser
 from datetime import datetime
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -15,7 +13,6 @@ FRONT = (AQUI.parent / 'frontend').resolve()
 CSV = Path(os.environ.get('ALERTBOT_CSV', AQUI.parent / 'resultados.csv'))
 HOST = os.environ.get('ALERTBOT_HOST', '127.0.0.1')
 PUERTO = 8765
-PULSERA = ('192.168.4.1', 4210)
 CAMPOS = ['fecha', 'participante', 'repeticion', 'alerta', 'signo', 'reaccion_ms', 'latencia_ms', 'reaccion_valida_ms']
 TIPOS = {'.html': 'text/html; charset=utf-8', '.mjs': 'text/javascript', '.js': 'text/javascript',
          '.wasm': 'application/wasm', '.woff2': 'font/woff2'}
@@ -33,18 +30,6 @@ def guardar(d):
             if nuevo:
                 w.writerow(CAMPOS)
             w.writerow(fila.values())
-
-
-def vibrar():
-    with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:
-        s.settimeout(0.5)
-        t0 = time.perf_counter()
-        try:
-            s.sendto(b'V', PULSERA)
-            s.recv(16)
-            return round((time.perf_counter() - t0) * 500, 1)  # mitad de la ida y vuelta, en ms
-        except OSError:
-            return None
 
 
 class Servidor(BaseHTTPRequestHandler):
@@ -78,8 +63,6 @@ class Servidor(BaseHTTPRequestHandler):
         if self.path == '/reaccion':
             guardar(d)
             return self.responder(b'{}', 'application/json')
-        if self.path == '/vibrar':
-            return self.responder(json.dumps({'latencia_ms': vibrar()}).encode(), 'application/json')
         self.send_error(404)
 
 

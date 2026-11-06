@@ -41,7 +41,3 @@ def test_la_reaccion_se_guarda_y_se_descarga_en_csv(url):
     cabeceras, csv = pedir(url + '/resultados.csv')
     assert 'attachment' in cabeceras['Content-Disposition']
     assert ',P01,3,sonido,ojos cerrados,412.5,,412.5' in csv.decode()
-
-
-def test_sin_pulsera_la_latencia_es_nula(url):
-    assert json.loads(pedir(url + '/vibrar', {})[1]) == {'latencia_ms': None}

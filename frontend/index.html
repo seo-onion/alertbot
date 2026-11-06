@@ -209,6 +209,8 @@
           <label><input type="radio" name="modo" value="vibracion"><span>Vibración</span></label>
         </div>
       </fieldset>
+      <button id="pulsera">Conectar pulsera</button>
+      <p class="ayuda">Por Bluetooth, en Chrome o Edge. Elige AlertBOT en la lista.</p>
     </div>
 
     <div class="bloque">
@@ -267,6 +269,8 @@ import { ajustes, diferencia, ear, inclinacion, Monitor, OJO_DER, OJO_IZQ } from
 
 const $ = id => document.getElementById(id)
 const post = (ruta, datos = {}) => fetch(ruta, { method: 'POST', body: JSON.stringify(datos) })
+const SERVICIO = '2ccd091a-b41e-45bc-8c69-c1bd623320ee', ORDEN = 'baeae5b5-1a39-426a-9fdd-ced41d29097c'  // los mismos UUID que en pulsera/pulsera.ino
+let orden = null
 const formatos = {}
 const fmt = (x, d = 0) => x == null || x === '' ? '—'
   : (formatos[d] ??= new Intl.NumberFormat('es', { minimumFractionDigits: d, maximumFractionDigits: d, useGrouping: false })).format(x)
@@ -484,6 +488,31 @@ function reloj() {
   requestAnimationFrame(reloj)
 }
 
+async function conectarPulsera() {
+  try {
+    const d = await navigator.bluetooth.requestDevice({ filters: [{ services: [SERVICIO] }] })
+    d.addEventListener('gattserverdisconnected', () => {
+      orden = null
+      $('pulsera').textContent = 'Reconectar pulsera'
+    })
+    orden = await (await (await d.gatt.connect()).getPrimaryService(SERVICIO)).getCharacteristic(ORDEN)
+    $('pulsera').textContent = 'Pulsera conectada'
+  } catch {
+    if (!orden) $('pulsera').textContent = 'Reintentar conexión'
+  }
+}
+
+async function vibrar() {
+  if (!orden) return null
+  const inicio = performance.now()
+  try {
+    await orden.writeValueWithResponse(new Uint8Array([86]))
+    return Math.round((performance.now() - inicio) * 5) / 10  // mitad de la ida y vuelta, en ms
+  } catch {
+    return null
+  }
+}
+
 monitor.alAlertar = a => {
   alerta = a.id
   causa = a.signo
@@ -491,9 +520,7 @@ monitor.alAlertar = a => {
   marcas.push(t0 / 1000)
   clearTimeout(cierre)
   if (a.tipo === 'sonido') pitido()
-  else post('/vibrar').then(r => r.json())
-    .then(({ latencia_ms }) => latencia_ms === null ? terminar(a.id, null) : a.latencia = latencia_ms)
-    .catch(() => terminar(a.id, null))
+  else vibrar().then(latencia_ms => latencia_ms === null ? terminar(a.id, null) : a.latencia = latencia_ms)
   aviso('aviso', a.tipo === 'sonido' ? 'Alerta con sonido' : 'Alerta con vibración en la pulsera', 'Presiona ESPACIO',
     a.signo === 'prueba' ? 'Alerta de prueba' : `Causa: ${a.signo} durante ${fmt(ajustes.segundos, 1)} s`)
   requestAnimationFrame(reloj)
@@ -610,6 +637,8 @@ $('camara').onchange = ev => {
 $('accion').onclick = () => e.fase === 'sin_calibrar' ? monitor.calibrar(performance.now() / 1000) : iniciarCamara($('camara').value || undefined)
 $('calibrar').onclick = () => monitor.calibrar(performance.now() / 1000)
 $('probar').onclick = () => monitor.probar()
+$('pulsera').onclick = conectarPulsera
+if (!navigator.bluetooth) Object.assign($('pulsera'), { disabled: true, textContent: 'Pulsera: usa Chrome o Edge' })
 for (const r of document.querySelectorAll('[name=modo]')) r.onchange = () => {
   monitor.modo = r.value
   r.blur()

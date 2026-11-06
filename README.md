@@ -8,7 +8,7 @@ Abre el link del equipo en Chrome, Edge o Firefox y permite la cámara. No hay q
 
 ## Correrlo en tu laptop desde GitHub
 
-No hay nada que compilar: el servidor usa solo Python, sin librerías extra, y la detección corre en el navegador. La versión local es la que se usa con la pulsera.
+No hay nada que compilar: el servidor usa solo Python, sin librerías extra, y la detección corre en el navegador.
 
 1. Instala Python 3.9 o más reciente desde [python.org](https://www.python.org/downloads/). En Windows marca **Add python.exe to PATH** en el instalador. Mac y Linux ya suelen traerlo.
 2. Descarga el proyecto, de una de estas dos formas:
@@ -41,11 +41,12 @@ Para actualizar: con git, `git pull`; sin git, baja el ZIP de nuevo.
 
 ### Con la pulsera
 
-1. Carga `pulsera/pulsera.ino` al ESP32 desde Arduino IDE (placa ESP32).
-2. Conecta la laptop a la WiFi `AlertBOT` (clave `alertbot123`).
-3. Corre `backend/app.py` como arriba y elige **Vibración** en la página.
+1. Carga `pulsera/pulsera.ino` desde Arduino IDE: placa **ESP32C3 Dev Module** (gestor de placas: *esp32* de Espressif Systems).
+2. Abre la página en Chrome o Edge, local o con el link web, y activa el Bluetooth de la laptop.
+3. Presiona **Conectar pulsera** y elige `AlertBOT` en la lista.
+4. Elige **Vibración** y presiona **Probar alerta**.
 
-La pulsera responde `OK` a cada orden `V` antes de vibrar; con eso la página mide la latencia.
+La pulsera se conecta por Bluetooth Low Energy y confirma cada orden antes de vibrar; con esa confirmación la página mide la latencia. Firefox no permite Bluetooth en páginas web.
 
 ## Publicar con Docker
 
