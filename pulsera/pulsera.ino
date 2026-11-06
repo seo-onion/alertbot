@@ -1,7 +1,11 @@
+#ifdef ESP8266
+#include <ESP8266WiFi.h>
+#else
 #include <WiFi.h>
+#endif
 #include <WiFiUdp.h>
 
-const int MOTOR = 25;  // GPIO que va a la base del transistor del motor; cámbialo si lo conectan a otro pin
+const int MOTOR = 3;  // GPIO que va a la base del transistor del motor; cámbialo si lo conectan a otro pin
 WiFiUDP udp;
 
 void setup() {
